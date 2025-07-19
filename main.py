@@ -1,5 +1,5 @@
 import pyxel
-from map_generator import MapGenerator, create_dungeon_generator, CELL_WALL, CELL_CORRIDOR, CELL_FLOOR
+from map_generator import MapGenerator, create_dungeon_generator, CELL_WALL
 
 # Tamanho de cada célula do grid em pixels
 CELL_SIZE = 16
@@ -20,8 +20,7 @@ WALL_COLOR = 7
 BG_COLOR = 0
 # Área de movimento válida
 MOVE_AREA_COLOR = 3
-# Cor dos corredores
-CORRIDOR_COLOR = 6
+
 # Distância máxima de movimento
 MAX_MOVE_DISTANCE = 3
 
@@ -113,7 +112,7 @@ class App:
         # Limpa a tela com a cor de fundo
         pyxel.cls(BG_COLOR)
         
-        # Desenha as paredes, corredores e pisos do mapa (apenas as visíveis)
+        # Desenha as paredes do mapa (apenas as visíveis)
         for y in range(self.camera_y, self.camera_y + VISIBLE_CELLS_Y):
             for x in range(self.camera_x, self.camera_x + VISIBLE_CELLS_X):
                 if self.map_generator.is_valid_position(x, y):
@@ -122,11 +121,7 @@ class App:
                     
                     if cell_type == CELL_WALL:
                         pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, WALL_COLOR)
-                    elif cell_type == CELL_CORRIDOR:
-                        pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, CORRIDOR_COLOR)
-                    elif cell_type == CELL_FLOOR:
-                        # Piso das salas - deixa transparente (fundo)
-                        pass
+                    # Corredores e pisos ficam transparentes (mesma cor do fundo)
         
         # Desenha a área de movimento válida (apenas as visíveis)
         valid_moves = self.get_valid_moves()
