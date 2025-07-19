@@ -138,10 +138,7 @@ class App:
         inventory_width = SCREEN_WIDTH - inventory_x
         pyxel.rect(inventory_x, interface_y, inventory_width, interface_height, 2)
         
-        # Mostra informações do jogador na interface
-        pyxel.text(5, interface_y + 5, f"Pos: ({self.player_pos[0]},{self.player_pos[1]})", 0)
-        pyxel.text(5, interface_y + 15, f"Camera: ({self.camera_x},{self.camera_y})", 0)
-        pyxel.text(5, interface_y + 25, f"Mapa: {MAP_SIZE_X}x{MAP_SIZE_Y}", 0)
+
 
 # Cria e executa o jogo
 App() 
