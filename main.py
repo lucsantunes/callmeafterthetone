@@ -33,8 +33,8 @@ class App:
         
         # Inicializa o gerador de mapas
         self.map_generator = create_dungeon_generator(MAP_SIZE_X, MAP_SIZE_Y)
-        # Gera dungeon D&D com 8 salas
-        self.map_generator.generate_dungeon(num_rooms=8, min_room_size=6, max_room_size=12)
+        # Gera dungeon D&D com salas maiores e corredores largos
+        self.map_generator.generate_dungeon(num_rooms=6, min_room_size=10, max_room_size=18, corridor_width=3)
         
         # Posição inicial do jogador (encontra posição válida)
         spawn_x, spawn_y = self.map_generator.find_valid_spawn_position()

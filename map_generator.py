@@ -44,6 +44,27 @@ class Room:
                    other.x + other.width <= self.x or
                    self.y + self.height <= other.y or 
                    other.y + other.height <= self.y)
+    
+    def distance_to(self, other: 'Room') -> int:
+        """Calcula a distância mínima entre duas salas."""
+        # Calcula a distância horizontal
+        if self.x + self.width <= other.x:
+            dx = other.x - (self.x + self.width)
+        elif other.x + other.width <= self.x:
+            dx = self.x - (other.x + other.width)
+        else:
+            dx = 0  # Salas se sobrepõem horizontalmente
+        
+        # Calcula a distância vertical
+        if self.y + self.height <= other.y:
+            dy = other.y - (self.y + self.height)
+        elif other.y + other.height <= self.y:
+            dy = self.y - (other.y + other.height)
+        else:
+            dy = 0  # Salas se sobrepõem verticalmente
+        
+        # Retorna a distância mínima (Manhattan)
+        return dx + dy
 
 
 class MapGenerator:
@@ -151,7 +172,7 @@ class MapGenerator:
         return (self.map_width // 2, self.map_height // 2)
     
     def generate_dungeon(self, num_rooms: int = 8, min_room_size: int = 5, 
-                        max_room_size: int = 12) -> List[List[int]]:
+                        max_room_size: int = 12, corridor_width: int = 2) -> List[List[int]]:
         """
         Gera um dungeon estilo D&D com salas e corredores.
         
@@ -159,6 +180,7 @@ class MapGenerator:
             num_rooms: Número de salas a gerar
             min_room_size: Tamanho mínimo das salas
             max_room_size: Tamanho máximo das salas
+            corridor_width: Largura dos corredores (2, 3 ou 4)
             
         Returns:
             Lista 2D representando o mapa do dungeon
@@ -168,18 +190,18 @@ class MapGenerator:
                         for _ in range(self.map_height)]
         
         # Gera salas
-        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size)
+        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size, min_distance=3)
         
         # Conecta as salas com corredores
-        self._connect_rooms(rooms)
+        self._connect_rooms(rooms, corridor_width)
         
         return self.map_data
     
-    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int) -> List[Room]:
-        """Gera salas aleatórias que não se intersectam."""
+    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int, min_distance: int = 3) -> List[Room]:
+        """Gera salas aleatórias que não se intersectam e mantêm distância mínima."""
         rooms = []
         attempts = 0
-        max_attempts = num_rooms * 200  # Aumenta tentativas
+        max_attempts = num_rooms * 300  # Aumenta tentativas para compensar a restrição
         
         while len(rooms) < num_rooms and attempts < max_attempts:
             # Gera sala aleatória
@@ -190,10 +212,14 @@ class MapGenerator:
             
             new_room = Room(x, y, width, height)
             
-            # Verifica se não intersecta com salas existentes
+            # Verifica se não intersecta e mantém distância mínima
             failed = False
             for room in rooms:
                 if new_room.intersects(room):
+                    failed = True
+                    break
+                # Verifica distância mínima
+                if new_room.distance_to(room) < min_distance:
                     failed = True
                     break
             
@@ -207,7 +233,7 @@ class MapGenerator:
         # Se não conseguiu gerar todas as salas, tenta com tamanhos menores
         if len(rooms) < num_rooms:
             remaining = num_rooms - len(rooms)
-            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2)
+            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2, min_distance)
             rooms.extend(smaller_rooms)
         
         return rooms
@@ -219,7 +245,7 @@ class MapGenerator:
                 if self.is_valid_position(x, y):
                     self.map_data[y][x] = CELL_FLOOR
     
-    def _connect_rooms(self, rooms: List[Room]):
+    def _connect_rooms(self, rooms: List[Room], corridor_width: int = 2):
         """Conecta as salas com corredores usando algoritmo simples."""
         if len(rooms) < 2:
             return
@@ -234,9 +260,9 @@ class MapGenerator:
             point2 = room2.get_random_point()
             
             # Cria corredor entre os pontos
-            self._create_corridor(point1, point2)
+            self._create_corridor(point1, point2, corridor_width)
     
-    def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int]):
+    def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int], corridor_width: int = 2):
         """Cria um corredor entre dois pontos."""
         x1, y1 = start
         x2, y2 = end
@@ -244,24 +270,40 @@ class MapGenerator:
         # Cria corredor em L (primeiro horizontal, depois vertical)
         if random.random() < 0.5:
             # Primeiro horizontal, depois vertical
-            self._carve_horizontal_corridor(x1, x2, y1)
-            self._carve_vertical_corridor(y1, y2, x2)
+            self._carve_horizontal_corridor(x1, x2, y1, corridor_width)
+            self._carve_vertical_corridor(y1, y2, x2, corridor_width)
         else:
             # Primeiro vertical, depois horizontal
-            self._carve_vertical_corridor(y1, y2, x1)
-            self._carve_horizontal_corridor(x1, x2, y2)
+            self._carve_vertical_corridor(y1, y2, x1, corridor_width)
+            self._carve_horizontal_corridor(x1, x2, y2, corridor_width)
     
-    def _carve_horizontal_corridor(self, x1: int, x2: int, y: int):
-        """Cava um corredor horizontal."""
-        for x in range(min(x1, x2), max(x1, x2) + 1):
-            if self.is_valid_position(x, y):
-                self.map_data[y][x] = CELL_CORRIDOR
+    def _carve_horizontal_corridor(self, x1: int, x2: int, y: int, width: int = 2):
+        """Cava um corredor horizontal com largura especificada."""
+        start_x = min(x1, x2)
+        end_x = max(x1, x2) + 1
+        
+        # Calcula o offset para centralizar o corredor
+        offset = width // 2
+        
+        for x in range(start_x, end_x):
+            for w in range(width):
+                corridor_y = y - offset + w
+                if self.is_valid_position(x, corridor_y):
+                    self.map_data[corridor_y][x] = CELL_CORRIDOR
     
-    def _carve_vertical_corridor(self, y1: int, y2: int, x: int):
-        """Cava um corredor vertical."""
-        for y in range(min(y1, y2), max(y1, y2) + 1):
-            if self.is_valid_position(x, y):
-                self.map_data[y][x] = CELL_CORRIDOR
+    def _carve_vertical_corridor(self, y1: int, y2: int, x: int, width: int = 2):
+        """Cava um corredor vertical com largura especificada."""
+        start_y = min(y1, y2)
+        end_y = max(y1, y2) + 1
+        
+        # Calcula o offset para centralizar o corredor
+        offset = width // 2
+        
+        for y in range(start_y, end_y):
+            for w in range(width):
+                corridor_x = x - offset + w
+                if self.is_valid_position(corridor_x, y):
+                    self.map_data[y][corridor_x] = CELL_CORRIDOR
 
 
 # Funções auxiliares para uso futuro
