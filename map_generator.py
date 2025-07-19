@@ -1,16 +1,11 @@
 """
-Map Generator Module
-====================
+Haunted Mansion Generator
+=========================
 
-Este módulo é responsável pela geração de mapas para o jogo.
-Futuramente será expandido para incluir geração procedural de dungeons
-estilo Dungeons & Dragons.
-
-Estrutura do mapa:
-- 0: Vazio (área transitável)
-- 1: Parede (bloqueia movimento)
-- 2: Porta
-- 3: Área especial (futuro)
+Este módulo gera mansões mal assombradas estilo D&D com:
+- Salas de diferentes tamanhos e formatos
+- Corredores conectando salas próximas
+- Layout realista de mansão
 """
 
 import random
@@ -19,13 +14,14 @@ from typing import List, Tuple, Optional, Set
 
 
 class Room:
-    """Representa uma sala no dungeon."""
+    """Representa uma sala na mansão mal assombrada."""
     
-    def __init__(self, x: int, y: int, width: int, height: int):
+    def __init__(self, x: int, y: int, width: int, height: int, room_type: str = "normal"):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
+        self.room_type = room_type  # normal, large, small, corridor
         
     def get_center(self) -> Tuple[int, int]:
         """Retorna o centro da sala."""
@@ -65,29 +61,16 @@ class Room:
         
         # Retorna a distância mínima (Manhattan)
         return dx + dy
-    
-    def is_adjacent_to(self, other: 'Room') -> bool:
-        """Verifica se duas salas são adjacentes (conectadas por corredor)."""
-        # Para ser adjacente, as salas devem estar próximas o suficiente
-        # para serem conectadas por um corredor direto
-        center1 = self.get_center()
-        center2 = other.get_center()
-        
-        # Distância máxima para considerar adjacente (baseado no tamanho das salas)
-        max_distance = max(self.width, self.height) + max(other.width, other.height) + 8
-        actual_distance = abs(center1[0] - center2[0]) + abs(center1[1] - center2[1])
-        
-        return actual_distance <= max_distance
 
 
-class MapGenerator:
+class HauntedMansionGenerator:
     """
-    Classe responsável pela geração de mapas.
+    Gerador de mansões mal assombradas estilo D&D.
     """
     
     def __init__(self, map_width: int, map_height: int):
         """
-        Inicializa o gerador de mapas.
+        Inicializa o gerador de mansões.
         
         Args:
             map_width: Largura do mapa em células
@@ -97,171 +80,107 @@ class MapGenerator:
         self.map_height = map_height
         self.map_data = []
         
-    def generate_simple_map(self) -> List[List[int]]:
+    def generate_mansion(self, num_rooms: int = 8, max_connection_distance: int = 15, 
+                        corridor_width: int = 3) -> List[List[int]]:
         """
-        Gera um mapa simples com paredes nas bordas.
-        Esta é a implementação atual do main.py.
-        
-        Returns:
-            Lista 2D representando o mapa (0 = vazio, 1 = parede)
-        """
-        # Inicializa o mapa com zeros (vazio)
-        self.map_data = [[0 for _ in range(self.map_width)] 
-                        for _ in range(self.map_height)]
-        
-        # Adiciona paredes nas bordas
-        for x in range(self.map_width):
-            self.map_data[0][x] = 1  # Parede superior
-            self.map_data[self.map_height - 1][x] = 1  # Parede inferior
-            
-        for y in range(self.map_height):
-            self.map_data[y][0] = 1  # Parede esquerda
-            self.map_data[y][self.map_width - 1] = 1  # Parede direita
-            
-        return self.map_data
-    
-    def get_map_data(self) -> List[List[int]]:
-        """
-        Retorna os dados do mapa atual.
-        
-        Returns:
-            Lista 2D representando o mapa
-        """
-        return self.map_data
-    
-    def is_wall(self, x: int, y: int) -> bool:
-        """
-        Verifica se a posição (x, y) é uma parede.
-        
-        Args:
-            x: Coordenada X
-            y: Coordenada Y
-            
-        Returns:
-            True se é parede, False caso contrário
-        """
-        if not self.is_valid_position(x, y):
-            return True  # Posições fora do mapa são consideradas paredes
-        cell_type = self.map_data[y][x]
-        # Apenas paredes bloqueiam movimento (corredores e pisos são transitáveis)
-        return cell_type == CELL_WALL
-    
-    def is_valid_position(self, x: int, y: int) -> bool:
-        """
-        Verifica se a posição está dentro dos limites do mapa.
-        
-        Args:
-            x: Coordenada X
-            y: Coordenada Y
-            
-        Returns:
-            True se a posição é válida, False caso contrário
-        """
-        return 0 <= x < self.map_width and 0 <= y < self.map_height
-    
-    def get_map_size(self) -> Tuple[int, int]:
-        """
-        Retorna as dimensões do mapa.
-        
-        Returns:
-            Tupla (largura, altura) do mapa
-        """
-        return self.map_width, self.map_height
-    
-    def find_valid_spawn_position(self) -> Tuple[int, int]:
-        """
-        Encontra uma posição válida para spawn do jogador.
-        
-        Returns:
-            Tupla (x, y) com posição válida
-        """
-        # Procura por uma posição transitável
-        for y in range(1, self.map_height - 1):
-            for x in range(1, self.map_width - 1):
-                if not self.is_wall(x, y):
-                    return (x, y)
-        
-        # Fallback: posição central se não encontrar
-        return (self.map_width // 2, self.map_height // 2)
-    
-    def generate_dungeon(self, num_rooms: int = 8, min_room_size: int = 5, 
-                        max_room_size: int = 12, corridor_width: int = 2) -> List[List[int]]:
-        """
-        Gera um dungeon estilo D&D com salas e corredores.
+        Gera uma mansão mal assombrada.
         
         Args:
             num_rooms: Número de salas a gerar
-            min_room_size: Tamanho mínimo das salas
-            max_room_size: Tamanho máximo das salas
-            corridor_width: Largura dos corredores (2, 3 ou 4)
+            max_connection_distance: Distância máxima para conectar salas
+            corridor_width: Largura dos corredores
             
         Returns:
-            Lista 2D representando o mapa do dungeon
+            Lista 2D representando o mapa da mansão
         """
-        # Inicializa o mapa com paredes
+        # 1. Inicializa o mapa com paredes
         self.map_data = [[CELL_WALL for _ in range(self.map_width)] 
                         for _ in range(self.map_height)]
         
-        # Gera salas
-        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size, min_distance=3, target_adjacent_distance=(5, 7))
+        # 2. Gera salas com distâncias e tamanhos razoáveis
+        rooms = self._generate_rooms(num_rooms)
         
-        # Conecta as salas com corredores
-        self._connect_rooms(rooms, corridor_width)
+        # 3. Conecta salas que estão até X de distância
+        self._connect_nearby_rooms(rooms, max_connection_distance, corridor_width)
         
         return self.map_data
     
-    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int, min_distance: int = 3, 
-                       target_adjacent_distance: tuple = (5, 7)) -> List[Room]:
-        """Gera salas aleatórias que não se intersectam e mantêm distância mínima."""
+    def _generate_rooms(self, num_rooms: int) -> List[Room]:
+        """Gera salas com tamanhos e formatos razoáveis."""
         rooms = []
         attempts = 0
-        max_attempts = num_rooms * 500  # Aumenta tentativas para compensar as restrições
+        max_attempts = num_rooms * 200
+        
+        # Define tipos de salas para mansão
+        room_types = [
+            {"type": "large", "min_size": 12, "max_size": 18, "weight": 2},
+            {"type": "normal", "min_size": 8, "max_size": 14, "weight": 5},
+            {"type": "small", "min_size": 5, "max_size": 8, "weight": 3}
+        ]
         
         while len(rooms) < num_rooms and attempts < max_attempts:
-            # Gera sala aleatória
-            width = random.randint(min_size, max_size)
-            height = random.randint(min_size, max_size)
-            x = random.randint(1, self.map_width - width - 1)
-            y = random.randint(1, self.map_height - height - 1)
+            # Escolhe tipo de sala baseado em peso
+            room_type = random.choices(room_types, weights=[r["weight"] for r in room_types])[0]
             
-            new_room = Room(x, y, width, height)
+            # Gera dimensões da sala
+            width = random.randint(room_type["min_size"], room_type["max_size"])
+            height = random.randint(room_type["min_size"], room_type["max_size"])
             
-            # Verifica se não intersecta e mantém distância mínima
+            # Posição aleatória
+            x = random.randint(2, self.map_width - width - 2)
+            y = random.randint(2, self.map_height - height - 2)
+            
+            new_room = Room(x, y, width, height, room_type["type"])
+            
+            # Verifica se não intersecta com salas existentes
             failed = False
             for room in rooms:
                 if new_room.intersects(room):
                     failed = True
                     break
-                # Verifica distância mínima
-                if new_room.distance_to(room) < min_distance:
-                    failed = True
-                    break
-                # Verifica distância para salas adjacentes
-                if new_room.is_adjacent_to(room):
-                    distance = new_room.distance_to(room)
-                    min_target, max_target = target_adjacent_distance
-                    if distance < min_target or distance > max_target:
-                        failed = True
-                        break
-                # Para salas não-adjacentes, ainda mantém distância mínima
-                elif new_room.distance_to(room) < min_distance:
+                # Mantém distância mínima de 3 células
+                if new_room.distance_to(room) < 3:
                     failed = True
                     break
             
             if not failed:
                 rooms.append(new_room)
-                # Desenha a sala no mapa
                 self._carve_room(new_room)
             
             attempts += 1
         
-        # Se não conseguiu gerar todas as salas, tenta com tamanhos menores
-        if len(rooms) < num_rooms:
-            remaining = num_rooms - len(rooms)
-            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2, min_distance, target_adjacent_distance)
-            rooms.extend(smaller_rooms)
-        
         return rooms
+    
+    def _connect_nearby_rooms(self, rooms: List[Room], max_distance: int, corridor_width: int):
+        """Conecta salas que estão até X de distância."""
+        if len(rooms) < 2:
+            return
+        
+        # Encontra pares de salas próximas
+        connections = []
+        
+        for i in range(len(rooms)):
+            for j in range(i + 1, len(rooms)):
+                room1 = rooms[i]
+                room2 = rooms[j]
+                distance = room1.distance_to(room2)
+                
+                # Conecta se estão próximas o suficiente
+                if distance <= max_distance:
+                    connections.append((room1, room2, distance))
+        
+        # Ordena por distância (mais próximas primeiro)
+        connections.sort(key=lambda x: x[2])
+        
+        # Limita o número de conexões para evitar sobrecarga
+        max_connections = min(len(connections), len(rooms) - 1)
+        selected_connections = connections[:max_connections]
+        
+        # Cria corredores para as conexões selecionadas
+        for room1, room2, distance in selected_connections:
+            point1 = room1.get_random_point()
+            point2 = room2.get_random_point()
+            self._create_corridor(point1, point2, corridor_width)
     
     def _carve_room(self, room: Room):
         """Cava uma sala no mapa."""
@@ -270,106 +189,123 @@ class MapGenerator:
                 if self.is_valid_position(x, y):
                     self.map_data[y][x] = CELL_FLOOR
     
-    def _connect_rooms(self, rooms: List[Room], corridor_width: int = 2):
-        """Conecta as salas com corredores usando algoritmo inteligente."""
-        if len(rooms) < 2:
-            return
-        
-        # Conecta apenas salas que são adjacentes
-        connected_pairs = []
-        
-        for i in range(len(rooms)):
-            for j in range(i + 1, len(rooms)):
-                room1 = rooms[i]
-                room2 = rooms[j]
-                
-                # Verifica se as salas são adjacentes
-                if room1.is_adjacent_to(room2):
-                    connected_pairs.append((room1, room2))
-        
-        # Se não encontrou salas adjacentes, conecta as mais próximas
-        if not connected_pairs:
-            # Encontra o par de salas mais próximas
-            min_distance = float('inf')
-            closest_pair = None
-            
-            for i in range(len(rooms)):
-                for j in range(i + 1, len(rooms)):
-                    room1 = rooms[i]
-                    room2 = rooms[j]
-                    distance = room1.distance_to(room2)
-                    
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_pair = (room1, room2)
-            
-            if closest_pair:
-                connected_pairs.append(closest_pair)
-        
-        # Cria corredores para os pares conectados
-        for room1, room2 in connected_pairs:
-            point1 = room1.get_random_point()
-            point2 = room2.get_random_point()
-            self._create_corridor(point1, point2, corridor_width)
-    
-    def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int], corridor_width: int = 2):
-        """Cria um corredor entre dois pontos."""
+    def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int], corridor_width: int):
+        """Cria um corredor entre dois pontos com largura completa."""
         x1, y1 = start
         x2, y2 = end
         
         # Cria corredor em L (primeiro horizontal, depois vertical)
         if random.random() < 0.5:
             # Primeiro horizontal, depois vertical
+            # Garante que o corredor horizontal vai até o ponto de conexão
             self._carve_horizontal_corridor(x1, x2, y1, corridor_width)
+            # Garante que o corredor vertical vai desde o ponto de conexão até o destino
             self._carve_vertical_corridor(y1, y2, x2, corridor_width)
+            # Preenche o canto do L para garantir largura completa
+            self._fill_corner(x2, y1, corridor_width, "horizontal_to_vertical")
         else:
             # Primeiro vertical, depois horizontal
+            # Garante que o corredor vertical vai até o ponto de conexão
             self._carve_vertical_corridor(y1, y2, x1, corridor_width)
+            # Garante que o corredor horizontal vai desde o ponto de conexão até o destino
             self._carve_horizontal_corridor(x1, x2, y2, corridor_width)
+            # Preenche o canto do L para garantir largura completa
+            self._fill_corner(x1, y2, corridor_width, "vertical_to_horizontal")
     
-    def _carve_horizontal_corridor(self, x1: int, x2: int, y: int, width: int = 2):
-        """Cava um corredor horizontal com largura especificada."""
+    def _carve_horizontal_corridor(self, x1: int, x2: int, y: int, width: int):
+        """Cava um corredor horizontal com largura completa."""
         start_x = min(x1, x2)
         end_x = max(x1, x2) + 1
         
         # Calcula o offset para centralizar o corredor
         offset = width // 2
         
+        # Cava toda a largura do corredor
         for x in range(start_x, end_x):
             for w in range(width):
                 corridor_y = y - offset + w
                 if self.is_valid_position(x, corridor_y):
                     self.map_data[corridor_y][x] = CELL_CORRIDOR
     
-    def _carve_vertical_corridor(self, y1: int, y2: int, x: int, width: int = 2):
-        """Cava um corredor vertical com largura especificada."""
+    def _carve_vertical_corridor(self, y1: int, y2: int, x: int, width: int):
+        """Cava um corredor vertical com largura completa."""
         start_y = min(y1, y2)
         end_y = max(y1, y2) + 1
         
         # Calcula o offset para centralizar o corredor
         offset = width // 2
         
+        # Cava toda a largura do corredor
         for y in range(start_y, end_y):
             for w in range(width):
                 corridor_x = x - offset + w
                 if self.is_valid_position(corridor_x, y):
                     self.map_data[y][corridor_x] = CELL_CORRIDOR
+    
+    def _fill_corner(self, corner_x: int, corner_y: int, width: int, direction: str):
+        """Preenche o canto do L para garantir largura completa."""
+        offset = width // 2
+        
+        if direction == "horizontal_to_vertical":
+            # Preenche o canto quando o corredor horizontal vira para vertical
+            # Preenche apenas as células que faltam no canto interno
+            for w in range(width):
+                for h in range(width):
+                    fill_x = corner_x - offset + w
+                    fill_y = corner_y - offset + h
+                    if self.is_valid_position(fill_x, fill_y):
+                        # Só preenche se não estiver já preenchido
+                        if self.map_data[fill_y][fill_x] != CELL_CORRIDOR:
+                            self.map_data[fill_y][fill_x] = CELL_CORRIDOR
+                        
+        elif direction == "vertical_to_horizontal":
+            # Preenche o canto quando o corredor vertical vira para horizontal
+            # Preenche apenas as células que faltam no canto interno
+            for w in range(width):
+                for h in range(width):
+                    fill_x = corner_x - offset + w
+                    fill_y = corner_y - offset + h
+                    if self.is_valid_position(fill_x, fill_y):
+                        # Só preenche se não estiver já preenchido
+                        if self.map_data[fill_y][fill_x] != CELL_CORRIDOR:
+                            self.map_data[fill_y][fill_x] = CELL_CORRIDOR
+    
+    def is_wall(self, x: int, y: int) -> bool:
+        """Verifica se a posição é uma parede."""
+        if not self.is_valid_position(x, y):
+            return True
+        return self.map_data[y][x] == CELL_WALL
+    
+    def is_valid_position(self, x: int, y: int) -> bool:
+        """Verifica se a posição está dentro dos limites."""
+        return 0 <= x < self.map_width and 0 <= y < self.map_height
+    
+    def find_valid_spawn_position(self) -> Tuple[int, int]:
+        """Encontra uma posição válida para spawn."""
+        for y in range(1, self.map_height - 1):
+            for x in range(1, self.map_width - 1):
+                if not self.is_wall(x, y):
+                    return (x, y)
+        return (self.map_width // 2, self.map_height // 2)
+    
+    def get_map_data(self) -> List[List[int]]:
+        """Retorna os dados do mapa."""
+        return self.map_data
 
 
-# Funções auxiliares para uso futuro
-def create_dungeon_generator(map_width: int, map_height: int) -> MapGenerator:
+# Funções auxiliares
+def create_mansion_generator(map_width: int, map_height: int) -> HauntedMansionGenerator:
     """
-    Factory function para criar um gerador de dungeons.
-    Futuramente será expandida para diferentes tipos de geração.
+    Factory function para criar um gerador de mansões mal assombradas.
     
     Args:
         map_width: Largura do mapa
         map_height: Altura do mapa
         
     Returns:
-        Instância de MapGenerator configurada
+        Instância de HauntedMansionGenerator configurada
     """
-    return MapGenerator(map_width, map_height)
+    return HauntedMansionGenerator(map_width, map_height)
 
 
 # Constantes para tipos de células

@@ -1,5 +1,5 @@
 import pyxel
-from map_generator import MapGenerator, create_dungeon_generator, CELL_WALL
+from map_generator import HauntedMansionGenerator, create_mansion_generator, CELL_WALL
 
 # Tamanho de cada célula do grid em pixels
 CELL_SIZE = 16
@@ -31,10 +31,10 @@ class App:
         # Ativa o uso do mouse
         pyxel.mouse(True)
         
-        # Inicializa o gerador de mapas
-        self.map_generator = create_dungeon_generator(MAP_SIZE_X, MAP_SIZE_Y)
-        # Gera dungeon D&D com salas maiores e corredores largos
-        self.map_generator.generate_dungeon(num_rooms=6, min_room_size=10, max_room_size=18, corridor_width=3)
+        # Inicializa o gerador de mansões mal assombradas
+        self.map_generator = create_mansion_generator(MAP_SIZE_X, MAP_SIZE_Y)
+        # Gera mansão mal assombrada
+        self.map_generator.generate_mansion(num_rooms=8, max_connection_distance=15, corridor_width=3)
         
         # Posição inicial do jogador (encontra posição válida)
         spawn_x, spawn_y = self.map_generator.find_valid_spawn_position()
