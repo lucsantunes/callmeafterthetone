@@ -6,6 +6,17 @@ import pyxel
 from typing import List, Dict, Tuple
 from core.constants import *
 
+def draw_large_text(x: int, y: int, text: str, color: int):
+    """Desenha texto em tamanho maior."""
+    for i, char in enumerate(text):
+        pyxel.text(x + i * 6, y, char, color)
+
+def draw_large_text_centered(x: int, y: int, text: str, color: int, width: int):
+    """Desenha texto centralizado em tamanho maior."""
+    text_width = len(text) * 6
+    start_x = x + (width - text_width) // 2
+    draw_large_text(start_x, y, text, color)
+
 
 class GameInterface:
     """Interface principal do jogo."""
@@ -81,9 +92,10 @@ class GameInterface:
         camera_x = max(0, min(player_x - self.game_area_width // 2, len(map_data[0]) - self.game_area_width))
         camera_y = max(0, min(player_y - self.game_area_height // 2, len(map_data) - self.game_area_height))
         
-        # Desenha o mapa visível
-        for y in range(self.game_area_height):
-            for x in range(self.game_area_width):
+        # Desenha o mapa visível com zoom
+        scale = 3  # Aumenta o tamanho do mapa
+        for y in range(self.game_area_height // scale):
+            for x in range(self.game_area_width // scale):
                 map_x = camera_x + x
                 map_y = camera_y + y
                 
@@ -93,19 +105,19 @@ class GameInterface:
                     cell = map_data[map_y][map_x]
                     
                     if cell == CELL_WALL:
-                        pyxel.pset(x, y, COLOR_GRAY)
+                        pyxel.rect(x * scale, y * scale, scale, scale, COLOR_GRAY)
                     elif cell == CELL_FLOOR:
-                        pyxel.pset(x, y, COLOR_BROWN)
+                        pyxel.rect(x * scale, y * scale, scale, scale, COLOR_BROWN)
                     elif cell == CELL_CORRIDOR:
-                        pyxel.pset(x, y, COLOR_BROWN)
+                        pyxel.rect(x * scale, y * scale, scale, scale, COLOR_BROWN)
         
         # Desenha o jogador
         player_screen_x = player_x - camera_x
         player_screen_y = player_y - camera_y
         
-        if (0 <= player_screen_x < self.game_area_width and 
-            0 <= player_screen_y < self.game_area_height):
-            pyxel.pset(player_screen_x, player_screen_y, COLOR_RED)
+        if (0 <= player_screen_x < self.game_area_width // scale and 
+            0 <= player_screen_y < self.game_area_height // scale):
+            pyxel.rect(player_screen_x * scale, player_screen_y * scale, scale, scale, COLOR_RED)
     
     def _draw_chat(self, game_state):
         """Desenha o chat de eventos."""
@@ -113,41 +125,41 @@ class GameInterface:
         pyxel.rect(self.chat_x, self.chat_y, self.chat_width, self.chat_height, COLOR_DARK_BLUE)
         
         # Título do chat
-        pyxel.text(self.chat_x + 5, 5, "Chat do Mestre", COLOR_WHITE)
+        draw_large_text(self.chat_x + 5, 5, "Chat do Mestre", COLOR_WHITE)
         
         # Linha separadora
-        pyxel.line(self.chat_x, 15, self.chat_x + self.chat_width - 1, 15, COLOR_WHITE)
+        pyxel.line(self.chat_x, 20, self.chat_x + self.chat_width - 1, 20, COLOR_WHITE)
         
         # Mensagens do chat
-        messages = game_state.get_recent_chat_messages(15)
-        y_offset = 20
+        messages = game_state.get_recent_chat_messages(10)  # Menos mensagens para texto maior
+        y_offset = 30
         
         for message in messages:
             sender = message['sender']
             text = message['message']
             
             # Nome do remetente
-            pyxel.text(self.chat_x + 5, y_offset, f"{sender}:", COLOR_YELLOW)
+            draw_large_text(self.chat_x + 5, y_offset, f"{sender}:", COLOR_YELLOW)
             
             # Quebra o texto em linhas
             words = text.split()
             line = ""
-            line_y = y_offset + 8
+            line_y = y_offset + 12
             
             for word in words:
-                if len(line + word) < 25:  # Limite de caracteres por linha
+                if len(line + word) < 20:  # Limite menor para texto maior
                     line += word + " "
                 else:
-                    pyxel.text(self.chat_x + 5, line_y, line, COLOR_WHITE)
+                    draw_large_text(self.chat_x + 5, line_y, line, COLOR_WHITE)
                     line = word + " "
-                    line_y += 8
+                    line_y += 12
             
             if line:
-                pyxel.text(self.chat_x + 5, line_y, line, COLOR_WHITE)
+                draw_large_text(self.chat_x + 5, line_y, line, COLOR_WHITE)
             
-            y_offset = line_y + 12
+            y_offset = line_y + 16
             
-            if y_offset > self.chat_height - 20:
+            if y_offset > self.chat_height - 30:
                 break
     
     def _draw_status(self, game_state):
@@ -160,24 +172,24 @@ class GameInterface:
         
         # HP
         hp_text = f"HP: {status['hp']}/{status['max_hp']}"
-        pyxel.text(self.status_x + 5, self.status_y + 5, hp_text, COLOR_WHITE)
+        draw_large_text(self.status_x + 5, self.status_y + 5, hp_text, COLOR_WHITE)
         
         # Barra de HP
         hp_percentage = status['hp_percentage']
         hp_bar_width = int((self.status_width - 10) * hp_percentage)
-        pyxel.rect(self.status_x + 5, self.status_y + 15, hp_bar_width, 8, COLOR_RED)
-        pyxel.rect(self.status_x + 5, self.status_y + 15, self.status_width - 10, 8, COLOR_GRAY)
+        pyxel.rect(self.status_x + 5, self.status_y + 20, hp_bar_width, 10, COLOR_RED)
+        pyxel.rect(self.status_x + 5, self.status_y + 20, self.status_width - 10, 10, COLOR_GRAY)
         
         # Level e XP
         level_text = f"Level: {status['level']}"
-        pyxel.text(self.status_x + 5, self.status_y + 30, level_text, COLOR_WHITE)
+        draw_large_text(self.status_x + 5, self.status_y + 35, level_text, COLOR_WHITE)
         
         xp_text = f"XP: {status['experience']}"
-        pyxel.text(self.status_x + 5, self.status_y + 40, xp_text, COLOR_WHITE)
+        draw_large_text(self.status_x + 5, self.status_y + 50, xp_text, COLOR_WHITE)
         
         # Ouro
         gold_text = f"Ouro: {status['gold']}"
-        pyxel.text(self.status_x + 5, self.status_y + 50, gold_text, COLOR_YELLOW)
+        draw_large_text(self.status_x + 5, self.status_y + 65, gold_text, COLOR_YELLOW)
     
     def _draw_actions(self, game_state):
         """Desenha as ações disponíveis."""
@@ -185,21 +197,21 @@ class GameInterface:
         pyxel.rect(self.actions_x, self.actions_y, self.actions_width, self.actions_height, COLOR_PURPLE)
         
         # Título
-        pyxel.text(self.actions_x + 5, self.actions_y + 5, "Ações", COLOR_WHITE)
+        draw_large_text(self.actions_x + 5, self.actions_y + 5, "Ações", COLOR_WHITE)
         
         # Botões de ação
-        button_y = self.actions_y + 20
+        button_y = self.actions_y + 25
         for i, button in enumerate(self.action_buttons):
             if i < 3:  # Mostra apenas 3 botões por vez
                 # Fundo do botão
                 button_color = COLOR_GREEN if game_state.player.can_perform_action(button["action"]) else COLOR_GRAY
-                pyxel.rect(self.actions_x + 5, button_y, self.actions_width - 10, 20, button_color)
+                pyxel.rect(self.actions_x + 5, button_y, self.actions_width - 10, 25, button_color)
                 
                 # Texto do botão
-                pyxel.text(self.actions_x + 10, button_y + 5, button["text"], COLOR_WHITE)
-                pyxel.text(self.actions_x + 10, button_y + 15, f"({button['key']})", COLOR_WHITE)
+                draw_large_text(self.actions_x + 10, button_y + 5, button["text"], COLOR_WHITE)
+                draw_large_text(self.actions_x + 10, button_y + 18, f"({button['key']})", COLOR_WHITE)
                 
-                button_y += 25
+                button_y += 30
     
     def _draw_inventory_summary(self, game_state):
         """Desenha o resumo do inventário."""
@@ -207,19 +219,19 @@ class GameInterface:
         pyxel.rect(self.inventory_x, self.inventory_y, self.inventory_width, self.inventory_height, COLOR_BROWN)
         
         # Título
-        pyxel.text(self.inventory_x + 5, self.inventory_y + 5, "Inventário", COLOR_WHITE)
+        draw_large_text(self.inventory_x + 5, self.inventory_y + 5, "Inventário", COLOR_WHITE)
         
         # Itens disponíveis (simulação - será implementado depois)
         items = ["Espada", "Poção"]  # Placeholder
         
-        item_y = self.inventory_y + 20
+        item_y = self.inventory_y + 25
         for i, item in enumerate(items[:2]):  # Mostra apenas 2 itens
-            pyxel.text(self.inventory_x + 5, item_y, f"{i+1}. {item}", COLOR_WHITE)
-            item_y += 15
+            draw_large_text(self.inventory_x + 5, item_y, f"{i+1}. {item}", COLOR_WHITE)
+            item_y += 20
         
         # Botão para abrir inventário completo
-        pyxel.rect(self.inventory_x + 5, self.inventory_y + 50, self.inventory_width - 10, 20, COLOR_GREEN)
-        pyxel.text(self.inventory_x + 10, self.inventory_y + 55, "Abrir Inventário", COLOR_WHITE)
+        pyxel.rect(self.inventory_x + 5, self.inventory_y + 65, self.inventory_width - 10, 25, COLOR_GREEN)
+        draw_large_text(self.inventory_x + 10, self.inventory_y + 70, "Abrir Inventário", COLOR_WHITE)
     
     def handle_click(self, x: int, y: int) -> str:
         """Processa cliques na interface."""
@@ -231,15 +243,15 @@ class GameInterface:
         if (self.actions_y <= y <= self.actions_y + self.actions_height and
             self.actions_x <= x <= self.actions_x + self.actions_width):
             
-            button_y = self.actions_y + 20
+            button_y = self.actions_y + 25
             for i, button in enumerate(self.action_buttons[:3]):
-                if (button_y <= y <= button_y + 20 and
+                if (button_y <= y <= button_y + 25 and
                     self.actions_x + 5 <= x <= self.actions_x + self.actions_width - 5):
                     return button["action"]
-                button_y += 25
+                button_y += 30
         
         # Verifica clique no botão do inventário
-        if (self.inventory_y + 50 <= y <= self.inventory_y + 70 and
+        if (self.inventory_y + 65 <= y <= self.inventory_y + 90 and
             self.inventory_x + 5 <= x <= self.inventory_x + self.inventory_width - 5):
             return ACTION_OPEN_INVENTORY
         
