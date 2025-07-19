@@ -1,5 +1,5 @@
 import pyxel
-from map_generator import HauntedMansionGenerator, create_mansion_generator, CELL_WALL
+from maps.map_generator import HauntedMansionGenerator, create_mansion_generator, CELL_WALL
 
 # Tamanho de cada célula do grid em pixels
 CELL_SIZE = 16

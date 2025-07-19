@@ -152,12 +152,81 @@ class HauntedMansionGenerator:
         return rooms
     
     def _connect_nearby_rooms(self, rooms: List[Room], max_distance: int, corridor_width: int):
-        """Conecta salas que estão até X de distância."""
+        """Conecta salas garantindo que todas tenham pelo menos uma conexão."""
         if len(rooms) < 2:
             return
         
-        # Encontra pares de salas próximas
-        connections = []
+        # Primeiro, garante conectividade mínima usando algoritmo de árvore geradora mínima
+        connected_rooms = self._ensure_minimum_connectivity(rooms, corridor_width)
+        
+        # Depois, adiciona conexões extras para salas próximas
+        self._add_extra_connections(rooms, max_distance, corridor_width, connected_rooms)
+    
+    def _ensure_minimum_connectivity(self, rooms: List[Room], corridor_width: int) -> set:
+        """Garante que todas as salas tenham pelo menos uma conexão."""
+        if len(rooms) < 2:
+            return set()
+        
+        # Usa algoritmo de árvore geradora mínima (Kruskal simplificado)
+        connected_rooms = set()
+        connections_made = []
+        
+        # Encontra todas as possíveis conexões
+        all_connections = []
+        for i in range(len(rooms)):
+            for j in range(i + 1, len(rooms)):
+                room1 = rooms[i]
+                room2 = rooms[j]
+                distance = room1.distance_to(room2)
+                all_connections.append((room1, room2, distance))
+        
+        # Ordena por distância (mais próximas primeiro)
+        all_connections.sort(key=lambda x: x[2])
+        
+        # Conecta salas até que todas estejam conectadas
+        for room1, room2, distance in all_connections:
+            # Verifica se esta conexão conecta componentes desconectados
+            room1_connected = room1 in connected_rooms
+            room2_connected = room2 in connected_rooms
+            
+            # Se nenhuma sala está conectada, conecta ambas
+            if not room1_connected and not room2_connected:
+                connected_rooms.add(room1)
+                connected_rooms.add(room2)
+                connections_made.append((room1, room2))
+                
+                # Cria o corredor
+                point1 = room1.get_random_point()
+                point2 = room2.get_random_point()
+                self._create_corridor(point1, point2, corridor_width)
+                
+            # Se apenas uma sala está conectada, conecta a outra
+            elif room1_connected and not room2_connected:
+                connected_rooms.add(room2)
+                connections_made.append((room1, room2))
+                
+                point1 = room1.get_random_point()
+                point2 = room2.get_random_point()
+                self._create_corridor(point1, point2, corridor_width)
+                
+            elif room2_connected and not room1_connected:
+                connected_rooms.add(room1)
+                connections_made.append((room1, room2))
+                
+                point1 = room1.get_random_point()
+                point2 = room2.get_random_point()
+                self._create_corridor(point1, point2, corridor_width)
+            
+            # Se todas as salas estão conectadas, para
+            if len(connected_rooms) == len(rooms):
+                break
+        
+        return connected_rooms
+    
+    def _add_extra_connections(self, rooms: List[Room], max_distance: int, corridor_width: int, connected_rooms: set):
+        """Adiciona conexões extras para salas próximas."""
+        # Encontra pares de salas próximas que ainda não estão conectadas
+        extra_connections = []
         
         for i in range(len(rooms)):
             for j in range(i + 1, len(rooms)):
@@ -165,22 +234,26 @@ class HauntedMansionGenerator:
                 room2 = rooms[j]
                 distance = room1.distance_to(room2)
                 
-                # Conecta se estão próximas o suficiente
+                # Conecta se estão próximas o suficiente e não estão muito conectadas
                 if distance <= max_distance:
-                    connections.append((room1, room2, distance))
+                    extra_connections.append((room1, room2, distance))
         
         # Ordena por distância (mais próximas primeiro)
-        connections.sort(key=lambda x: x[2])
+        extra_connections.sort(key=lambda x: x[2])
         
-        # Limita o número de conexões para evitar sobrecarga
-        max_connections = min(len(connections), len(rooms) - 1)
-        selected_connections = connections[:max_connections]
+        # Adiciona algumas conexões extras (não todas para evitar sobrecarga)
+        max_extra_connections = len(rooms) // 2  # Máximo de conexões extras
+        connections_added = 0
         
-        # Cria corredores para as conexões selecionadas
-        for room1, room2, distance in selected_connections:
+        for room1, room2, distance in extra_connections:
+            if connections_added >= max_extra_connections:
+                break
+                
+            # Cria o corredor
             point1 = room1.get_random_point()
             point2 = room2.get_random_point()
             self._create_corridor(point1, point2, corridor_width)
+            connections_added += 1
     
     def _carve_room(self, room: Room):
         """Cava uma sala no mapa."""
