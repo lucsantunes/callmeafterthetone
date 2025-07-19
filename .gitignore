@@ -9,3 +9,13 @@ Thumbs.db
 
 # Pasta local para desenvolvimento
 local/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
