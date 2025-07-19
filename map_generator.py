@@ -14,7 +14,36 @@ Estrutura do mapa:
 """
 
 import random
-from typing import List, Tuple, Optional
+import math
+from typing import List, Tuple, Optional, Set
+
+
+class Room:
+    """Representa uma sala no dungeon."""
+    
+    def __init__(self, x: int, y: int, width: int, height: int):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        
+    def get_center(self) -> Tuple[int, int]:
+        """Retorna o centro da sala."""
+        return (self.x + self.width // 2, self.y + self.height // 2)
+        
+    def get_random_point(self) -> Tuple[int, int]:
+        """Retorna um ponto aleatório dentro da sala."""
+        return (
+            random.randint(self.x + 1, self.x + self.width - 2),
+            random.randint(self.y + 1, self.y + self.height - 2)
+        )
+        
+    def intersects(self, other: 'Room') -> bool:
+        """Verifica se esta sala intersecta com outra."""
+        return not (self.x + self.width <= other.x or 
+                   other.x + other.width <= self.x or
+                   self.y + self.height <= other.y or 
+                   other.y + other.height <= self.y)
 
 
 class MapGenerator:
@@ -79,7 +108,9 @@ class MapGenerator:
         """
         if not self.is_valid_position(x, y):
             return True  # Posições fora do mapa são consideradas paredes
-        return self.map_data[y][x] == 1
+        cell_type = self.map_data[y][x]
+        # Apenas paredes bloqueiam movimento (corredores e pisos são transitáveis)
+        return cell_type == CELL_WALL
     
     def is_valid_position(self, x: int, y: int) -> bool:
         """
@@ -102,6 +133,135 @@ class MapGenerator:
             Tupla (largura, altura) do mapa
         """
         return self.map_width, self.map_height
+    
+    def find_valid_spawn_position(self) -> Tuple[int, int]:
+        """
+        Encontra uma posição válida para spawn do jogador.
+        
+        Returns:
+            Tupla (x, y) com posição válida
+        """
+        # Procura por uma posição transitável
+        for y in range(1, self.map_height - 1):
+            for x in range(1, self.map_width - 1):
+                if not self.is_wall(x, y):
+                    return (x, y)
+        
+        # Fallback: posição central se não encontrar
+        return (self.map_width // 2, self.map_height // 2)
+    
+    def generate_dungeon(self, num_rooms: int = 8, min_room_size: int = 5, 
+                        max_room_size: int = 12) -> List[List[int]]:
+        """
+        Gera um dungeon estilo D&D com salas e corredores.
+        
+        Args:
+            num_rooms: Número de salas a gerar
+            min_room_size: Tamanho mínimo das salas
+            max_room_size: Tamanho máximo das salas
+            
+        Returns:
+            Lista 2D representando o mapa do dungeon
+        """
+        # Inicializa o mapa com paredes
+        self.map_data = [[CELL_WALL for _ in range(self.map_width)] 
+                        for _ in range(self.map_height)]
+        
+        # Gera salas
+        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size)
+        
+        # Conecta as salas com corredores
+        self._connect_rooms(rooms)
+        
+        return self.map_data
+    
+    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int) -> List[Room]:
+        """Gera salas aleatórias que não se intersectam."""
+        rooms = []
+        attempts = 0
+        max_attempts = num_rooms * 200  # Aumenta tentativas
+        
+        while len(rooms) < num_rooms and attempts < max_attempts:
+            # Gera sala aleatória
+            width = random.randint(min_size, max_size)
+            height = random.randint(min_size, max_size)
+            x = random.randint(1, self.map_width - width - 1)
+            y = random.randint(1, self.map_height - height - 1)
+            
+            new_room = Room(x, y, width, height)
+            
+            # Verifica se não intersecta com salas existentes
+            failed = False
+            for room in rooms:
+                if new_room.intersects(room):
+                    failed = True
+                    break
+            
+            if not failed:
+                rooms.append(new_room)
+                # Desenha a sala no mapa
+                self._carve_room(new_room)
+            
+            attempts += 1
+        
+        # Se não conseguiu gerar todas as salas, tenta com tamanhos menores
+        if len(rooms) < num_rooms:
+            remaining = num_rooms - len(rooms)
+            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2)
+            rooms.extend(smaller_rooms)
+        
+        return rooms
+    
+    def _carve_room(self, room: Room):
+        """Cava uma sala no mapa."""
+        for y in range(room.y, room.y + room.height):
+            for x in range(room.x, room.x + room.width):
+                if self.is_valid_position(x, y):
+                    self.map_data[y][x] = CELL_FLOOR
+    
+    def _connect_rooms(self, rooms: List[Room]):
+        """Conecta as salas com corredores usando algoritmo simples."""
+        if len(rooms) < 2:
+            return
+        
+        # Conecta cada sala com a próxima
+        for i in range(len(rooms) - 1):
+            room1 = rooms[i]
+            room2 = rooms[i + 1]
+            
+            # Pega pontos aleatórios em cada sala
+            point1 = room1.get_random_point()
+            point2 = room2.get_random_point()
+            
+            # Cria corredor entre os pontos
+            self._create_corridor(point1, point2)
+    
+    def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int]):
+        """Cria um corredor entre dois pontos."""
+        x1, y1 = start
+        x2, y2 = end
+        
+        # Cria corredor em L (primeiro horizontal, depois vertical)
+        if random.random() < 0.5:
+            # Primeiro horizontal, depois vertical
+            self._carve_horizontal_corridor(x1, x2, y1)
+            self._carve_vertical_corridor(y1, y2, x2)
+        else:
+            # Primeiro vertical, depois horizontal
+            self._carve_vertical_corridor(y1, y2, x1)
+            self._carve_horizontal_corridor(x1, x2, y2)
+    
+    def _carve_horizontal_corridor(self, x1: int, x2: int, y: int):
+        """Cava um corredor horizontal."""
+        for x in range(min(x1, x2), max(x1, x2) + 1):
+            if self.is_valid_position(x, y):
+                self.map_data[y][x] = CELL_CORRIDOR
+    
+    def _carve_vertical_corridor(self, y1: int, y2: int, x: int):
+        """Cava um corredor vertical."""
+        for y in range(min(y1, y2), max(y1, y2) + 1):
+            if self.is_valid_position(x, y):
+                self.map_data[y][x] = CELL_CORRIDOR
 
 
 # Funções auxiliares para uso futuro
@@ -120,7 +280,7 @@ def create_dungeon_generator(map_width: int, map_height: int) -> MapGenerator:
     return MapGenerator(map_width, map_height)
 
 
-# Constantes para tipos de células (futuro)
+# Constantes para tipos de células
 CELL_EMPTY = 0
 CELL_WALL = 1
 CELL_DOOR = 2

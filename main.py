@@ -1,5 +1,5 @@
 import pyxel
-from map_generator import MapGenerator, create_dungeon_generator
+from map_generator import MapGenerator, create_dungeon_generator, CELL_WALL, CELL_CORRIDOR, CELL_FLOOR
 
 # Tamanho de cada célula do grid em pixels
 CELL_SIZE = 16
@@ -20,6 +20,8 @@ WALL_COLOR = 7
 BG_COLOR = 0
 # Área de movimento válida
 MOVE_AREA_COLOR = 3
+# Cor dos corredores
+CORRIDOR_COLOR = 6
 # Distância máxima de movimento
 MAX_MOVE_DISTANCE = 3
 
@@ -32,10 +34,12 @@ class App:
         
         # Inicializa o gerador de mapas
         self.map_generator = create_dungeon_generator(MAP_SIZE_X, MAP_SIZE_Y)
-        self.map_generator.generate_simple_map()
+        # Gera dungeon D&D com 8 salas
+        self.map_generator.generate_dungeon(num_rooms=8, min_room_size=6, max_room_size=12)
         
-        # Posição inicial do jogador (dentro da sala, não na parede)
-        self.player_pos = [1, 1]
+        # Posição inicial do jogador (encontra posição válida)
+        spawn_x, spawn_y = self.map_generator.find_valid_spawn_position()
+        self.player_pos = [spawn_x, spawn_y]
         # Posição da câmera (inicialmente no canto superior esquerdo)
         self.camera_x = 0
         self.camera_y = 0
@@ -109,12 +113,20 @@ class App:
         # Limpa a tela com a cor de fundo
         pyxel.cls(BG_COLOR)
         
-        # Desenha as paredes do mapa (apenas as visíveis)
+        # Desenha as paredes, corredores e pisos do mapa (apenas as visíveis)
         for y in range(self.camera_y, self.camera_y + VISIBLE_CELLS_Y):
             for x in range(self.camera_x, self.camera_x + VISIBLE_CELLS_X):
-                if self.map_generator.is_wall(x, y):
+                if self.map_generator.is_valid_position(x, y):
+                    cell_type = self.map_generator.map_data[y][x]
                     screen_x, screen_y = self.world_to_screen(x, y)
-                    pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, WALL_COLOR)
+                    
+                    if cell_type == CELL_WALL:
+                        pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, WALL_COLOR)
+                    elif cell_type == CELL_CORRIDOR:
+                        pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, CORRIDOR_COLOR)
+                    elif cell_type == CELL_FLOOR:
+                        # Piso das salas - deixa transparente (fundo)
+                        pass
         
         # Desenha a área de movimento válida (apenas as visíveis)
         valid_moves = self.get_valid_moves()
