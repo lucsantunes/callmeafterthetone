@@ -1,5 +1,5 @@
 ---
-description: sempre ler a pasta examples contendo códigos de boas práticas em pyxel e o arquivo README.md de documentação para saber como programar em pyxel. Não precisa criar README.
+description: sempre ler a pasta examples contendo códigos de boas práticas em pyxel e o arquivo README.md de documentação para saber como programar em pyxel. Não precisa criar README. Não criar coisas que não foram pedidas.
 globs:
 alwaysApply: true
 ---

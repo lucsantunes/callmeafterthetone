@@ -1,157 +1,116 @@
 import pyxel
-from maps.map_generator import HauntedMansionGenerator, create_mansion_generator, CELL_WALL
+from core.game_state import GameState
+from ui.interface import GameInterface
+from core.constants import *
 
-# Tamanho de cada célula do grid em pixels
-CELL_SIZE = 16
-# Quantidade de células visíveis na tela
-VISIBLE_CELLS_X = 20
-VISIBLE_CELLS_Y = 20
-# Tamanho total do mapa (maior que a tela)
-MAP_SIZE_X = 60  # 3x maior que a tela
-MAP_SIZE_Y = 60  # 3x maior que a tela
-# Tamanho da tela em pixels
-SCREEN_WIDTH = CELL_SIZE * VISIBLE_CELLS_X
-SCREEN_HEIGHT = CELL_SIZE * VISIBLE_CELLS_Y + 64  # 64 pixels para a área de interface
-# Cor do jogador
-PLAYER_COLOR = 8
-# Cor das paredes
-WALL_COLOR = 7
-# Cor de fundo
-BG_COLOR = 0
-# Área de movimento válida
-MOVE_AREA_COLOR = 3
-
-# Distância máxima de movimento
-MAX_MOVE_DISTANCE = 3
+# Configurações da tela
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 800
 
 class App:
     def __init__(self):
-        # Inicializa a janela do Pyxel
-        pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Pyxel Grid Move - Mapa Maior")
-        # Ativa o uso do mouse
+        pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Call Me After The Tone - D&D Haunted Mansion")
         pyxel.mouse(True)
         
-        # Inicializa o gerador de mansões mal assombradas
-        self.map_generator = create_mansion_generator(MAP_SIZE_X, MAP_SIZE_Y)
-        # Gera mansão mal assombrada
-        self.map_generator.generate_mansion(num_rooms=8, max_connection_distance=15, corridor_width=3)
+        # Inicializa o estado do jogo
+        self.game_state = GameState(60, 60)
         
-        # Posição inicial do jogador (encontra posição válida)
-        spawn_x, spawn_y = self.map_generator.find_valid_spawn_position()
-        self.player_pos = [spawn_x, spawn_y]
-        # Posição da câmera (inicialmente no canto superior esquerdo)
-        self.camera_x = 0
-        self.camera_y = 0
-        # Inicia o loop principal do Pyxel
+        # Inicializa a interface
+        self.interface = GameInterface(SCREEN_WIDTH, SCREEN_HEIGHT)
+        
         pyxel.run(self.update, self.draw)
-
-    def world_to_screen(self, world_x, world_y):
-        """Converte coordenadas do mundo para coordenadas da tela"""
-        screen_x = (world_x - self.camera_x) * CELL_SIZE
-        screen_y = (world_y - self.camera_y) * CELL_SIZE
-        return screen_x, screen_y
-
-    def screen_to_world(self, screen_x, screen_y):
-        """Converte coordenadas da tela para coordenadas do mundo"""
-        world_x = (screen_x // CELL_SIZE) + self.camera_x
-        world_y = (screen_y // CELL_SIZE) + self.camera_y
-        return world_x, world_y
-
-    def update_camera(self):
-        """Atualiza a posição da câmera para seguir o jogador"""
-        # Calcula a posição ideal da câmera (jogador no centro da tela)
-        target_camera_x = self.player_pos[0] - VISIBLE_CELLS_X // 2
-        target_camera_y = self.player_pos[1] - VISIBLE_CELLS_Y // 2
-        
-        # Limita a câmera para não mostrar áreas vazias além do mapa
-        self.camera_x = max(0, min(target_camera_x, MAP_SIZE_X - VISIBLE_CELLS_X))
-        self.camera_y = max(0, min(target_camera_y, MAP_SIZE_Y - VISIBLE_CELLS_Y))
-
-    def is_valid_move(self, target_x, target_y):
-        """Verifica se o movimento é válido (dentro da área permitida e não é parede)"""
-        # Verifica se está dentro do mapa (não é parede)
-        if self.map_generator.is_wall(target_x, target_y):
-            return False
-        # Calcula a distância Manhattan (mais adequada para grid)
-        distance = abs(target_x - self.player_pos[0]) + abs(target_y - self.player_pos[1])
-        return distance <= MAX_MOVE_DISTANCE
-
-    def get_valid_moves(self):
-        """Retorna lista de posições válidas para movimento"""
-        valid_moves = []
-        # Só verifica células visíveis na tela para otimização
-        start_x = max(0, self.camera_x)
-        end_x = min(MAP_SIZE_X, self.camera_x + VISIBLE_CELLS_X)
-        start_y = max(0, self.camera_y)
-        end_y = min(MAP_SIZE_Y, self.camera_y + VISIBLE_CELLS_Y)
-        
-        for y in range(start_y, end_y):
-            for x in range(start_x, end_x):
-                if self.is_valid_move(x, y):
-                    valid_moves.append([x, y])
-        return valid_moves
-
+    
     def update(self):
-        # Fecha o jogo se apertar Q
-        if pyxel.btnp(pyxel.KEY_Q):
-            pyxel.quit()
+        # Atualiza o estado do jogo
+        self.game_state.update()
         
-        # Atualiza a câmera para seguir o jogador
-        self.update_camera()
-        
-        # Move o jogador ao clicar com o mouse
+        # Processa apenas cliques do mouse
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            mx, my = pyxel.mouse_x, pyxel.mouse_y
-            # Converte coordenadas do mouse para coordenadas do mundo
-            world_x, world_y = self.screen_to_world(mx, my)
-            # Só move se o clique for em uma posição válida
-            if self.is_valid_move(world_x, world_y):
-                self.player_pos = [world_x, world_y]
-
+            x, y = pyxel.mouse_x, pyxel.mouse_y
+            action = self.interface.handle_click(x, y)
+            if action:
+                self.game_state.handle_mouse_action(action, x, y)
+    
     def draw(self):
-        # Limpa a tela com a cor de fundo
-        pyxel.cls(BG_COLOR)
+        # Desenha a interface baseada no estado atual
+        if self.game_state.current_state == GAME_STATE_MENU:
+            self._draw_menu()
+        elif self.game_state.current_state == GAME_STATE_PLAYING:
+            self._draw_game()
+        elif self.game_state.current_state == GAME_STATE_PAUSE:
+            self._draw_pause()
+        elif self.game_state.current_state == GAME_STATE_GAME_OVER:
+            self._draw_game_over()
+    
+    def _draw_menu(self):
+        """Desenha o menu inicial."""
+        pyxel.cls(COLOR_BLACK)
         
-        # Desenha as paredes do mapa (apenas as visíveis)
-        for y in range(self.camera_y, self.camera_y + VISIBLE_CELLS_Y):
-            for x in range(self.camera_x, self.camera_x + VISIBLE_CELLS_X):
-                if self.map_generator.is_valid_position(x, y):
-                    cell_type = self.map_generator.map_data[y][x]
-                    screen_x, screen_y = self.world_to_screen(x, y)
-                    
-                    if cell_type == CELL_WALL:
-                        pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, WALL_COLOR)
-                    # Corredores e pisos ficam transparentes (mesma cor do fundo)
+        # Título
+        title = "Call Me After The Tone"
+        subtitle = "D&D Haunted Mansion"
+        pyxel.text(SCREEN_WIDTH // 2 - len(title) * 3, SCREEN_HEIGHT // 2 - 50, title, COLOR_WHITE)
+        pyxel.text(SCREEN_WIDTH // 2 - len(subtitle) * 3, SCREEN_HEIGHT // 2 - 30, subtitle, COLOR_YELLOW)
         
-        # Desenha a área de movimento válida (apenas as visíveis)
-        valid_moves = self.get_valid_moves()
-        for pos in valid_moves:
-            if pos != self.player_pos:  # Não desenha sobre o jogador
-                screen_x, screen_y = self.world_to_screen(pos[0], pos[1])
-                pyxel.rect(screen_x+1, screen_y+1, CELL_SIZE-2, CELL_SIZE-2, MOVE_AREA_COLOR)
+        # Botão para começar
+        button_x = SCREEN_WIDTH // 2 - 100
+        button_y = SCREEN_HEIGHT // 2 + 10
+        button_width = 200
+        button_height = 40
         
-        # Desenha o jogador como um quadrado menor dentro da célula
-        player_screen_x, player_screen_y = self.world_to_screen(self.player_pos[0], self.player_pos[1])
-        pyxel.rect(player_screen_x+2, player_screen_y+2, CELL_SIZE-4, CELL_SIZE-4, PLAYER_COLOR)
+        pyxel.rect(button_x, button_y, button_width, button_height, COLOR_GREEN)
+        pyxel.text(SCREEN_WIDTH // 2 - 30, button_y + 15, "COMEÇAR", COLOR_WHITE)
         
-        # Desenha a área de interface na parte inferior
-        interface_y = CELL_SIZE * VISIBLE_CELLS_Y
-        interface_height = 64        
-        # Área de status (esquerda)
-        status_width = SCREEN_WIDTH // 3
-        pyxel.rect(0, interface_y, status_width, interface_height, 5)
+        # Instruções
+        instructions = "Clique no botão para começar"
+        pyxel.text(SCREEN_WIDTH // 2 - len(instructions) * 3, button_y + 60, instructions, COLOR_WHITE)
+    
+    def _draw_game(self):
+        """Desenha o jogo."""
+        self.interface.draw(self.game_state)
+    
+    def _draw_pause(self):
+        """Desenha o menu de pausa."""
+        # Desenha o jogo em segundo plano
+        self.interface.draw(self.game_state)
         
-        # Área de ações (meio)
-        actions_x = status_width
-        actions_width = SCREEN_WIDTH // 3
-        pyxel.rect(actions_x, interface_y, actions_width, interface_height, 4)
+        # Overlay de pausa
+        pyxel.rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK)
+        pyxel.rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50, 200, 100, COLOR_DARK_BLUE)
         
-        # Área de inventário (direita)
-        inventory_x = actions_x + actions_width
-        inventory_width = SCREEN_WIDTH - inventory_x
-        pyxel.rect(inventory_x, interface_y, inventory_width, interface_height, 2)
+        # Texto de pausa
+        pause_text = "PAUSA"
+        pyxel.text(SCREEN_WIDTH // 2 - len(pause_text) * 3, SCREEN_HEIGHT // 2 - 20, pause_text, COLOR_WHITE)
         
+        # Botão continuar
+        button_x = SCREEN_WIDTH // 2 - 50
+        button_y = SCREEN_HEIGHT // 2 + 5
+        pyxel.rect(button_x, button_y, 100, 20, COLOR_GREEN)
+        pyxel.text(SCREEN_WIDTH // 2 - 25, button_y + 5, "Continuar", COLOR_WHITE)
+        
+        # Botão sair
+        button_y2 = SCREEN_HEIGHT // 2 + 25
+        pyxel.rect(button_x, button_y2, 100, 20, COLOR_RED)
+        pyxel.text(SCREEN_WIDTH // 2 - 15, button_y2 + 5, "Sair", COLOR_WHITE)
+    
+    def _draw_game_over(self):
+        """Desenha a tela de game over."""
+        pyxel.cls(COLOR_BLACK)
+        
+        # Título
+        game_over_text = "GAME OVER"
+        pyxel.text(SCREEN_WIDTH // 2 - len(game_over_text) * 3, SCREEN_HEIGHT // 2 - 50, game_over_text, COLOR_RED)
+        
+        # Botão recomeçar
+        button_x = SCREEN_WIDTH // 2 - 100
+        button_y = SCREEN_HEIGHT // 2 - 10
+        pyxel.rect(button_x, button_y, 200, 40, COLOR_GREEN)
+        pyxel.text(SCREEN_WIDTH // 2 - 40, button_y + 15, "Recomeçar", COLOR_WHITE)
+        
+        # Botão sair
+        button_y2 = SCREEN_HEIGHT // 2 + 30
+        pyxel.rect(button_x, button_y2, 200, 40, COLOR_RED)
+        pyxel.text(SCREEN_WIDTH // 2 - 20, button_y2 + 15, "Sair", COLOR_WHITE)
 
-
-# Cria e executa o jogo
-App() 
+if __name__ == "__main__":
+    App() 
