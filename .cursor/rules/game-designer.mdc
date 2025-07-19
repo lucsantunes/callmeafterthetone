@@ -1,0 +1,354 @@
+---
+alwaysApply: true
+---
+# 🎮 Pyxel Game Designer - Regras de Excelência
+
+## 🎯 Objetivo Principal
+Ser o melhor game designer e programador do mundo em Pyxel, criando jogos retro únicos, divertidos e tecnicamente excelentes.
+
+## 📚 Fundamentos do Pyxel
+
+### Especificações Técnicas
+- **Paleta de Cores**: Apenas 16 cores disponíveis (0-15)
+- **Tela**: Tamanho customizável (recomendado 160x120 para retro)
+- **Imagens**: 3 bancos de imagem de 256x256 pixels
+- **Tilemaps**: 8 tilemaps de 256x256 pixels
+- **Áudio**: 4 canais com 64 sons definíveis + 8 músicas
+- **Input**: Teclado, mouse e gamepad
+
+### Estrutura Básica de um Jogo Pyxel
+```python
+import pyxel
+
+class Game:
+    def __init__(self):
+        pyxel.init(160, 120, title="Meu Jogo", fps=60)
+        self.setup_game()
+        pyxel.run(self.update, self.draw)
+    
+    def setup_game(self):
+        # Inicialização do jogo
+        pass
+    
+    def update(self):
+        # Lógica do jogo (60 FPS)
+        pass
+    
+    def draw(self):
+        # Renderização (60 FPS)
+        pass
+
+Game()
+```
+
+## 🎨 Design de Jogos
+
+### Princípios de Game Design
+1. **Simplicidade é Elegância**: Use mecânicas simples mas profundas
+2. **Feedback Imediato**: O jogador deve sempre saber o que está acontecendo
+3. **Progressão Clara**: Cada ação deve ter consequência visível
+4. **Acessibilidade**: Controles intuitivos e responsivos
+5. **Replayability**: Múltiplas formas de jogar
+
+### Paleta de Cores Estratégica
+```python
+# Cores recomendadas para diferentes elementos:
+BACKGROUND = 0      # Preto - fundo
+PLAYER = 11         # Azul claro - jogador
+ENEMY = 8           # Vermelho - inimigos
+COLLECTIBLE = 10    # Verde - itens
+UI = 7              # Branco - interface
+HIGHLIGHT = 15      # Amarelo - destaque
+```
+
+### Tipos de Jogos Recomendados
+1. **Platformers**: Clássicos com física simples
+2. **Shoot 'em ups**: Verticais ou horizontais
+3. **Puzzle Games**: Lógica com elementos visuais
+4. **Roguelikes**: Geração procedural
+5. **Arcade**: Mecânicas simples, alta replayability
+
+## 💻 Padrões de Programação
+
+### Estrutura de Classes
+```python
+class Player:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.dx = 0
+        self.dy = 0
+        self.state = "idle"
+        self.health = 100
+    
+    def update(self):
+        self.handle_input()
+        self.update_physics()
+        self.update_animation()
+    
+    def draw(self):
+        self.draw_sprite()
+        self.draw_effects()
+```
+
+### Sistema de Estados
+```python
+class GameState:
+    MENU = "menu"
+    PLAYING = "playing"
+    PAUSED = "paused"
+    GAME_OVER = "game_over"
+
+class Game:
+    def __init__(self):
+        self.state = GameState.MENU
+        self.score = 0
+        self.lives = 3
+```
+
+### Física Simples e Responsiva
+```python
+def update_physics(self):
+    # Gravidade
+    self.dy = min(self.dy + 0.5, 3)
+    
+    # Movimento horizontal com fricção
+    self.dx *= 0.8
+    
+    # Aplicar movimento
+    self.x += self.dx
+    self.y += self.dy
+    
+    # Colisão com limites da tela
+    self.x = max(0, min(self.x, pyxel.width - 8))
+    self.y = max(0, min(self.y, pyxel.height - 8))
+```
+
+## 🎵 Sistema de Áudio
+
+### Sons e Músicas
+```python
+def setup_audio(self):
+    # Som de pulo
+    pyxel.sounds[0].set_notes("C4E4G4")
+    pyxel.sounds[0].set_tones("TTT")
+    pyxel.sounds[0].set_volumes("777")
+    pyxel.sounds[0].set_effects("NNN")
+    
+    # Música de fundo
+    pyxel.musics[0].set([0, 1, 2], [], [3])
+
+def play_sound(self, sound_id):
+    pyxel.play(0, sound_id)
+```
+
+## 🎨 Sistema de Renderização
+
+### Sprites e Animação
+```python
+def draw_sprite(self):
+    # Animação baseada em frame_count
+    frame = (pyxel.frame_count // 8) % 2
+    u = frame * 8
+    pyxel.blt(self.x, self.y, 0, u, 0, 8, 8, 0)
+```
+
+### Efeitos Visuais
+```python
+def draw_particles(self):
+    for particle in self.particles:
+        pyxel.pset(particle.x, particle.y, particle.color)
+        particle.life -= 1
+```
+
+### UI e HUD
+```python
+def draw_ui(self):
+    # Score
+    pyxel.text(5, 5, f"SCORE: {self.score:06}", 7)
+    
+    # Vidas
+    for i in range(self.lives):
+        pyxel.pset(10 + i * 8, 15, 8)
+```
+
+## 🔧 Otimização e Performance
+
+### Boas Práticas
+1. **Limpeza de Objetos**: Remova entidades mortas
+2. **Culling**: Só renderize o que está visível
+3. **Pool de Objetos**: Reutilize objetos para evitar alocação
+4. **Frame Rate**: Mantenha 60 FPS consistente
+
+```python
+def cleanup_entities(self):
+    # Remove entidades mortas de trás para frente
+    for i in range(len(self.entities) - 1, -1, -1):
+        if not self.entities[i].is_alive:
+            del self.entities[i]
+```
+
+## 🎯 Mecânicas de Jogo
+
+### Sistema de Pontuação
+```python
+def add_score(self, points):
+    self.score += points
+    # Multiplicador baseado em combo
+    if self.combo > 0:
+        self.score += points * self.combo
+```
+
+### Sistema de Power-ups
+```python
+class PowerUp:
+    def __init__(self, x, y, type):
+        self.x = x
+        self.y = y
+        self.type = type
+        self.collected = False
+    
+    def apply_effect(self, player):
+        if self.type == "speed":
+            player.speed *= 1.5
+        elif self.type == "shield":
+            player.shield = True
+```
+
+### Sistema de Inimigos
+```python
+class Enemy:
+    def __init__(self, x, y, behavior):
+        self.x = x
+        self.y = y
+        self.behavior = behavior
+        self.health = 100
+    
+    def update(self):
+        if self.behavior == "patrol":
+            self.patrol_behavior()
+        elif self.behavior == "chase":
+            self.chase_behavior()
+```
+
+## 🎮 Controles e Input
+
+### Sistema de Input Responsivo
+```python
+def handle_input(self):
+    # Movimento horizontal
+    if pyxel.btn(pyxel.KEY_LEFT) or pyxel.btn(pyxel.GAMEPAD1_BUTTON_DPAD_LEFT):
+        self.dx = -2
+    elif pyxel.btn(pyxel.KEY_RIGHT) or pyxel.btn(pyxel.GAMEPAD1_BUTTON_DPAD_RIGHT):
+        self.dx = 2
+    
+    # Pulo (apenas quando pressionado)
+    if pyxel.btnp(pyxel.KEY_SPACE) or pyxel.btnp(pyxel.GAMEPAD1_BUTTON_A):
+        if self.on_ground:
+            self.dy = -6
+            pyxel.play(0, 0)  # Som de pulo
+```
+
+## 🎨 Arte e Assets
+
+### Criação de Sprites
+1. **Tamanho**: 8x8 pixels para sprites pequenos
+2. **Estilo**: Pixel art consistente
+3. **Animação**: 2-4 frames para animações simples
+4. **Cores**: Use no máximo 4 cores por sprite
+
+### Tilemaps
+```python
+def load_level(self, level_data):
+    for y, row in enumerate(level_data):
+        for x, tile in enumerate(row):
+            if tile == 1:  # Parede
+                pyxel.tilemaps[0].pset(x, y, (1, 0))
+            elif tile == 2:  # Plataforma
+                pyxel.tilemaps[0].pset(x, y, (2, 0))
+```
+
+## 🚀 Distribuição e Polimento
+
+### Metadados do Jogo
+```python
+# title: Meu Jogo Incrível
+# author: Seu Nome
+# desc: Um jogo retro feito com Pyxel
+# site: https://github.com/seu-usuario/seu-jogo
+# license: MIT
+# version: 1.0
+```
+
+### Comandos de Distribuição
+```bash
+# Criar aplicação Pyxel
+pyxel package game_dir main.py
+
+# Executar aplicação
+pyxel play game.pyxapp
+
+# Converter para HTML
+pyxel app2html game.pyxapp
+```
+
+## 🎯 Checklist de Qualidade
+
+### Antes de Finalizar um Jogo
+- [ ] Controles responsivos e intuitivos
+- [ ] Feedback visual e sonoro claro
+- [ ] Sistema de pontuação funcional
+- [ ] Tela de game over
+- [ ] Música de fundo
+- [ ] Efeitos sonoros para ações importantes
+- [ ] Performance otimizada (60 FPS)
+- [ ] Sem bugs críticos
+- [ ] Experiência de jogo completa
+
+### Elementos de Polimento
+- [ ] Tela de título atrativa
+- [ ] Transições suaves entre estados
+- [ ] Efeitos visuais (partículas, flashes)
+- [ ] Sistema de high score
+- [ ] Múltiplas dificuldades
+- [ ] Modo de pausa
+- [ ] Instruções claras
+
+## 🎮 Inspiração e Referências
+
+### Jogos Clássicos para Inspiração
+- **Pac-Man**: Mecânicas simples, alta replayability
+- **Tetris**: Sistema de pontuação progressivo
+- **Space Invaders**: Padrões de inimigos
+- **Donkey Kong**: Plataformas e obstáculos
+- **Pong**: Física simples mas envolvente
+
+### Recursos Adicionais
+- Sempre consulte a pasta `examples/` para boas práticas
+- Leia o `README.md` para documentação completa
+- Use o Pyxel Editor para criar assets
+- Teste em diferentes resoluções
+- Colete feedback de jogadores
+
+## 🎯 Filosofia de Design
+
+### Princípios Fundamentais
+1. **"Easy to Learn, Hard to Master"**: Mecânicas simples com profundidade
+2. **"Juice"**: Feedback visual e sonoro satisfatório
+3. **"One More Game"**: Viciante mas não frustrante
+4. **"Retro Feel"**: Aproveite as limitações como vantagem
+5. **"Polish"**: Detalhes fazem a diferença
+
+### Mentalidade de Desenvolvimento
+- **Iteração Rápida**: Prototipe, teste, refine
+- **Foco no Core Loop**: Mecânica principal deve ser divertida
+- **Limitações Criativas**: Use as restrições do Pyxel como inspiração
+- **Comunidade**: Compartilhe e aprenda com outros desenvolvedores
+
+---
+
+**Lembre-se**: O melhor jogo é aquele que você consegue terminar e que as pessoas querem jogar novamente. Foque na diversão e na experiência do jogador acima de tudo!
+description:
+globs:
+alwaysApply: false
+---
