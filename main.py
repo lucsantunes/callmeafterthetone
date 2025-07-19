@@ -1,4 +1,5 @@
 import pyxel
+from map_generator import MapGenerator, create_dungeon_generator
 
 # Tamanho de cada célula do grid em pixels
 CELL_SIZE = 16
@@ -28,6 +29,11 @@ class App:
         pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Pyxel Grid Move - Mapa Maior")
         # Ativa o uso do mouse
         pyxel.mouse(True)
+        
+        # Inicializa o gerador de mapas
+        self.map_generator = create_dungeon_generator(MAP_SIZE_X, MAP_SIZE_Y)
+        self.map_generator.generate_simple_map()
+        
         # Posição inicial do jogador (dentro da sala, não na parede)
         self.player_pos = [1, 1]
         # Posição da câmera (inicialmente no canto superior esquerdo)
@@ -61,7 +67,7 @@ class App:
     def is_valid_move(self, target_x, target_y):
         """Verifica se o movimento é válido (dentro da área permitida e não é parede)"""
         # Verifica se está dentro do mapa (não é parede)
-        if target_x < 1 or target_x >= MAP_SIZE_X-1 or target_y < 1 or target_y >= MAP_SIZE_Y-1:
+        if self.map_generator.is_wall(target_x, target_y):
             return False
         # Calcula a distância Manhattan (mais adequada para grid)
         distance = abs(target_x - self.player_pos[0]) + abs(target_y - self.player_pos[1])
@@ -103,10 +109,10 @@ class App:
         # Limpa a tela com a cor de fundo
         pyxel.cls(BG_COLOR)
         
-        # Desenha as paredes ao redor do mapa (apenas as visíveis)
+        # Desenha as paredes do mapa (apenas as visíveis)
         for y in range(self.camera_y, self.camera_y + VISIBLE_CELLS_Y):
             for x in range(self.camera_x, self.camera_x + VISIBLE_CELLS_X):
-                if x == 0 or x == MAP_SIZE_X-1 or y == 0 or y == MAP_SIZE_Y-1:
+                if self.map_generator.is_wall(x, y):
                     screen_x, screen_y = self.world_to_screen(x, y)
                     pyxel.rect(screen_x, screen_y, CELL_SIZE, CELL_SIZE, WALL_COLOR)
         
