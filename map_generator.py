@@ -65,6 +65,19 @@ class Room:
         
         # Retorna a distância mínima (Manhattan)
         return dx + dy
+    
+    def is_adjacent_to(self, other: 'Room') -> bool:
+        """Verifica se duas salas são adjacentes (conectadas por corredor)."""
+        # Para ser adjacente, as salas devem estar próximas o suficiente
+        # para serem conectadas por um corredor direto
+        center1 = self.get_center()
+        center2 = other.get_center()
+        
+        # Distância máxima para considerar adjacente (baseado no tamanho das salas)
+        max_distance = max(self.width, self.height) + max(other.width, other.height) + 8
+        actual_distance = abs(center1[0] - center2[0]) + abs(center1[1] - center2[1])
+        
+        return actual_distance <= max_distance
 
 
 class MapGenerator:
@@ -190,18 +203,19 @@ class MapGenerator:
                         for _ in range(self.map_height)]
         
         # Gera salas
-        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size, min_distance=3)
+        rooms = self._generate_rooms(num_rooms, min_room_size, max_room_size, min_distance=3, target_adjacent_distance=(5, 7))
         
         # Conecta as salas com corredores
         self._connect_rooms(rooms, corridor_width)
         
         return self.map_data
     
-    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int, min_distance: int = 3) -> List[Room]:
+    def _generate_rooms(self, num_rooms: int, min_size: int, max_size: int, min_distance: int = 3, 
+                       target_adjacent_distance: tuple = (5, 7)) -> List[Room]:
         """Gera salas aleatórias que não se intersectam e mantêm distância mínima."""
         rooms = []
         attempts = 0
-        max_attempts = num_rooms * 300  # Aumenta tentativas para compensar a restrição
+        max_attempts = num_rooms * 500  # Aumenta tentativas para compensar as restrições
         
         while len(rooms) < num_rooms and attempts < max_attempts:
             # Gera sala aleatória
@@ -222,6 +236,17 @@ class MapGenerator:
                 if new_room.distance_to(room) < min_distance:
                     failed = True
                     break
+                # Verifica distância para salas adjacentes
+                if new_room.is_adjacent_to(room):
+                    distance = new_room.distance_to(room)
+                    min_target, max_target = target_adjacent_distance
+                    if distance < min_target or distance > max_target:
+                        failed = True
+                        break
+                # Para salas não-adjacentes, ainda mantém distância mínima
+                elif new_room.distance_to(room) < min_distance:
+                    failed = True
+                    break
             
             if not failed:
                 rooms.append(new_room)
@@ -233,7 +258,7 @@ class MapGenerator:
         # Se não conseguiu gerar todas as salas, tenta com tamanhos menores
         if len(rooms) < num_rooms:
             remaining = num_rooms - len(rooms)
-            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2, min_distance)
+            smaller_rooms = self._generate_rooms(remaining, min_size - 1, max_size - 2, min_distance, target_adjacent_distance)
             rooms.extend(smaller_rooms)
         
         return rooms
@@ -246,20 +271,45 @@ class MapGenerator:
                     self.map_data[y][x] = CELL_FLOOR
     
     def _connect_rooms(self, rooms: List[Room], corridor_width: int = 2):
-        """Conecta as salas com corredores usando algoritmo simples."""
+        """Conecta as salas com corredores usando algoritmo inteligente."""
         if len(rooms) < 2:
             return
         
-        # Conecta cada sala com a próxima
-        for i in range(len(rooms) - 1):
-            room1 = rooms[i]
-            room2 = rooms[i + 1]
+        # Conecta apenas salas que são adjacentes
+        connected_pairs = []
+        
+        for i in range(len(rooms)):
+            for j in range(i + 1, len(rooms)):
+                room1 = rooms[i]
+                room2 = rooms[j]
+                
+                # Verifica se as salas são adjacentes
+                if room1.is_adjacent_to(room2):
+                    connected_pairs.append((room1, room2))
+        
+        # Se não encontrou salas adjacentes, conecta as mais próximas
+        if not connected_pairs:
+            # Encontra o par de salas mais próximas
+            min_distance = float('inf')
+            closest_pair = None
             
-            # Pega pontos aleatórios em cada sala
+            for i in range(len(rooms)):
+                for j in range(i + 1, len(rooms)):
+                    room1 = rooms[i]
+                    room2 = rooms[j]
+                    distance = room1.distance_to(room2)
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_pair = (room1, room2)
+            
+            if closest_pair:
+                connected_pairs.append(closest_pair)
+        
+        # Cria corredores para os pares conectados
+        for room1, room2 in connected_pairs:
             point1 = room1.get_random_point()
             point2 = room2.get_random_point()
-            
-            # Cria corredor entre os pontos
             self._create_corridor(point1, point2, corridor_width)
     
     def _create_corridor(self, start: Tuple[int, int], end: Tuple[int, int], corridor_width: int = 2):
